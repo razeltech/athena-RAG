@@ -24,7 +24,11 @@ class Settings(BaseSettings):
     # --- LLM (fully local via Ollama — no API key, no cloud) --------------
     ollama_base_url: str = "http://localhost:11434"
     llm_model: str = "qwen2.5:7b-instruct"
-    llm_temperature: float = 0.2
+    # 0.2 kept answers accurate but too flat to carry Athena's tone/personality
+    # (verified: the same prompt/model produced personality reliably at 0.5 and
+    # not at 0.2 in side-by-side testing). 0.5 is still low enough to stay
+    # grounded in the retrieved passages.
+    llm_temperature: float = 0.5
     llm_num_ctx: int = 8192
 
     # --- Embeddings (local sentence-transformers) -------------------------
