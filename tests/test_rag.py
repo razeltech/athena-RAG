@@ -83,3 +83,14 @@ def test_prepare_passes_through_persona_and_mode():
     messages, _ = rag.prepare("org1", "hi", persona_id="raza", mode_id="teaching")
     assert "Raza" in messages[0].content
     assert "Mode: Teaching" in messages[0].content
+
+
+def test_empty_retrieval_gives_explicit_no_context_marker_not_blank():
+    # A blank context section read to the model as "nothing was provided" (not
+    # "nothing relevant exists"), and it would sometimes fabricate an answer
+    # plus a citation number pointing at nothing. Regression test for that.
+    rag = RagService(FakeEmbedder(), FakeVectorStore(), FakeLLM(), FakeReranker())
+    messages, citations = rag.prepare("org1", "what documents do you support?")
+    user_message = messages[-1].content
+    assert "nothing to cite" in user_message
+    assert citations == []

@@ -6,6 +6,14 @@ Every important choice gets an entry so that in six months — or when a second 
 
 ---
 
+## D-012 — Fabricated-citation bug fix: explicit "no context" marker + example · Status: accepted
+
+- **Context:** Found from real usage: asking "what kind of documents u support?" with zero documents in the org produced *"I support text files, PDFs, images, and more [1]"* — factually wrong (no OCR/image support exists) **and** citing `[1]` while `citations: []` was empty. Root cause: `_build_context([])` returned an empty string for "no chunks," which read to the model as "nothing was provided" rather than "nothing relevant exists," so it filled the gap with general knowledge and a fabricated citation number.
+- **Decision:** `_build_context` now returns an explicit marker string ("no documents are available, or none were relevant... there is nothing to cite") instead of blank when there are no chunks. `BASE_RULES` gained an explicit rule against ever writing a bracket number that doesn't correspond to a real passage — "not even to explain that it doesn't exist" — paired with a concrete worked example (persona-neutral, since it's shared across all personas), matching the same "abstract rules alone don't stick, examples do" finding from D-009.
+- **Consequences:** Verified — the model now correctly says "I don't have any documents to check right now" with zero fabricated citations, across Athena/Smiley/Raza. Known minor remaining nuance, not fixed: in this specific zero-documents edge case, all personas currently give a near-identical response (the model leans on the example too literally rather than adapting tone) — a much smaller issue than the hallucination it replaced, left as-is rather than over-iterating on a rare edge case.
+
+---
+
 ## D-011 — Embedding/reranker models load with `local_files_only=True` · Status: accepted
 
 - **Context:** A user-reported slow first message ("hey" took 18.2s) turned out to be partly a real bug, not just cold-start model loading: `sentence-transformers` was making live HEAD requests to huggingface.co on every process start to check for model updates, even though the model was already downloaded and cached. That's a genuine violation of `rules.md`'s non-negotiable — "nothing at runtime may require an internet connection" — not just a performance nit.

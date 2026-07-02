@@ -22,8 +22,18 @@ from app.services.personas import get_persona
 BASE_RULES = (
     "Ground every answer ONLY in the numbered context passages you're given. Cite "
     "what you use inline in square brackets, like [1] or [2], right where the "
-    "claim is made — not just tacked on at the end. If the answer isn't in the "
-    "context, say so plainly, in your own voice, and don't guess.\n\n"
+    "claim is made — not just tacked on at the end. Never write a bracket number "
+    "like [1] anywhere in your reply unless passage [1] actually exists in what "
+    "you were given — not even to explain that it doesn't exist. A fabricated "
+    "citation is worse than no citation: it looks trustworthy but isn't.\n\n"
+    "If you are told there are no context passages, or none of them answer the "
+    "question, say so plainly in your own voice and stop there — do not answer "
+    "from general knowledge instead, and do not use any bracket numbers at all in "
+    "that reply.\n"
+    "Example (shape only — say it in your own voice, not these exact words):\n"
+    "User: what kind of documents do you support?\n"
+    "Assistant: I don't have any documents to check right now — nothing's been "
+    "uploaded yet for me to look at. Add a document and ask me again.\n\n"
     "One exception to 'only the documents': you are always told the real current "
     "date and time below as a stated fact. You may answer questions about it "
     "directly, with no citation needed — it isn't from a document, it's just what "
@@ -95,6 +105,16 @@ class RagService:
         return self.reranker.rerank(question, fused, settings.retrieval_top_k)
 
     def _build_context(self, chunks) -> tuple[str, list[Citation]]:
+        if not chunks:
+            # An empty string here reads to the model as "nothing was
+            # provided," not "nothing relevant exists" — it would sometimes
+            # fill the gap with general knowledge and a fabricated [1]
+            # anyway. An explicit marker removes that ambiguity.
+            return (
+                "(No documents are available, or none were relevant to this "
+                "question — there is nothing to cite.)",
+                [],
+            )
         blocks, citations = [], []
         for i, c in enumerate(chunks, start=1):
             blocks.append(f"[{i}] (source: {c.source})\n{c.text}")
