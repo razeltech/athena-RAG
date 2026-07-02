@@ -65,13 +65,6 @@
     color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1;
   }
   .icon-btn:hover { border-color: var(--accent-soft); color: var(--ink); }
-  .picker {
-    font: inherit; font-size: 12px; color: var(--ink-soft); cursor: pointer;
-    background: var(--panel-2); border: 1px solid var(--line);
-    padding: 6px 10px; border-radius: 9px; max-width: 130px;
-  }
-  .picker:hover { border-color: var(--accent-soft); }
-  .picker:focus { outline: none; border-color: var(--accent-soft); }
 
   .layout { flex: 1; display: flex; min-height: 0; }
   .sidebar {
@@ -174,27 +167,42 @@
     padding: 16px 20px;
   }
   .composer {
-    max-width: 760px; margin: 0 auto; display: flex; gap: 10px;
-    align-items: flex-end;
+    max-width: 760px; margin: 0 auto;
   }
+  .composer-box {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 20px;
+    padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .composer-box:focus-within { border-color: var(--accent-soft); }
   textarea {
-    flex: 1; resize: none; font: inherit; color: var(--ink);
-    background: var(--panel-2); border: 1px solid var(--line);
-    border-radius: 12px; padding: 12px 14px; max-height: 160px; outline: none;
+    width: 100%; resize: none; font: inherit; color: var(--ink);
+    background: transparent; border: none; padding: 4px 4px;
+    max-height: 160px; outline: none;
   }
-  textarea:focus { border-color: var(--accent-soft); }
-  .send {
-    font: inherit; font-weight: 600; cursor: pointer; color: #12100e;
-    background: var(--accent); border: none; border-radius: 12px;
-    padding: 12px 18px;
+  .composer-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }
-  .send:disabled { opacity: .45; cursor: default; }
+  .composer-toolbar .pickers { display: flex; gap: 6px; min-width: 0; }
+  .composer-toolbar .actions { display: flex; gap: 6px; flex: 0 0 auto; }
+  .picker-mini {
+    font: inherit; font-size: 11px; color: var(--ink-soft); cursor: pointer;
+    background: transparent; border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 9px; max-width: 108px;
+  }
+  .picker-mini:hover { border-color: var(--accent-soft); }
+  .picker-mini:focus { outline: none; border-color: var(--accent-soft); }
+  .round-btn {
+    width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto;
+    display: grid; place-items: center; border: none; cursor: pointer; font-size: 15px;
+  }
+  .send-btn { background: var(--accent); color: #12100e; }
+  .send-btn:disabled { opacity: .35; cursor: default; }
+  .send-btn.stop { background: var(--ink-soft); color: var(--bg); }
   .mic-btn {
-    width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center;
-    font-size: 17px; border-radius: 12px; border: 1px dashed var(--line);
-    background: var(--panel-2); color: var(--ink-soft); cursor: pointer; opacity: .6;
+    background: var(--panel); border: 1px dashed var(--line); color: var(--ink-soft);
+    opacity: .6;
   }
-  .mic-btn:hover { border-color: var(--accent-soft); color: var(--ink); opacity: .85; }
+  .mic-btn:hover { opacity: .9; border-color: var(--accent-soft); }
   .hint { max-width: 760px; margin: 8px auto 0; font-size: 11px; color: var(--muted); }
   input[type=file] { display: none; }
   .toast {
@@ -253,8 +261,6 @@
     </div>
     <span class="tag">local · offline</span>
     <div class="spacer"></div>
-    <select class="picker" id="personaSelect" onchange="onPersonaChange()" title="Persona"></select>
-    <select class="picker" id="modeSelect" onchange="onModeChange()" title="Mode"></select>
     <button class="doc-btn" onclick="openDocsPanel()">My Documents</button>
     <button class="doc-btn" onclick="document.getElementById('file').click()">+ Add document</button>
     <input type="file" id="file" onchange="uploadDoc(this.files[0])" />
@@ -278,10 +284,20 @@
 
       <footer>
         <div class="composer">
-          <textarea id="input" rows="1" placeholder="Ask a question about your documents..."
-                    onkeydown="onKey(event)" oninput="autoGrow(this)"></textarea>
-          <button class="mic-btn" id="micBtn" onclick="onMicClick()" title="Voice input (coming soon)">&#127908;</button>
-          <button class="send" id="send" onclick="send()">Send</button>
+          <div class="composer-box">
+            <textarea id="input" rows="1" placeholder="Ask a question about your documents..."
+                      onkeydown="onKey(event)" oninput="autoGrow(this); updateSendButtonEnabled();"></textarea>
+            <div class="composer-toolbar">
+              <div class="pickers">
+                <select class="picker-mini" id="personaSelect" onchange="onPersonaChange()" title="Persona"></select>
+                <select class="picker-mini" id="modeSelect" onchange="onModeChange()" title="Mode"></select>
+              </div>
+              <div class="actions">
+                <button class="round-btn mic-btn" id="micBtn" onclick="onMicClick()" title="Voice input (coming soon)">&#127908;</button>
+                <button class="round-btn send-btn" id="sendBtn" onclick="onSendOrStopClick()" title="Send">&#8593;</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="hint">Runs entirely on your hardware. Responses are grounded in retrieved passages. · Powered by Razel Tech</div>
       </footer>
@@ -307,6 +323,7 @@ let conversationId = null;
 let currentPersona = "athena";
 let currentMode = "answering";
 let conversationsCache = [];
+let activeAbortController = null;
 
 const EMPTY_STATE_HTML =
   '<div class="empty" id="empty">' +
@@ -370,6 +387,28 @@ async function uploadDoc(file) {
   document.getElementById("file").value = "";
 }
 
+function onSendOrStopClick() {
+  if (activeAbortController) {
+    activeAbortController.abort();
+    return;
+  }
+  send();
+}
+
+function setSendButtonState(streaming) {
+  const btn = document.getElementById("sendBtn");
+  btn.classList.toggle("stop", streaming);
+  btn.innerHTML = streaming ? "&#9632;" : "&#8593;"; // stop square vs. up arrow
+  btn.title = streaming ? "Stop" : "Send";
+  if (!streaming) updateSendButtonEnabled();
+}
+
+function updateSendButtonEnabled() {
+  if (activeAbortController) return; // mid-stream: button stays enabled as the stop control
+  const hasText = document.getElementById("input").value.trim().length > 0;
+  document.getElementById("sendBtn").disabled = !hasText;
+}
+
 async function send() {
   const input = document.getElementById("input");
   const question = input.value.trim();
@@ -378,7 +417,9 @@ async function send() {
 
   input.value = ""; autoGrow(input);
   addMessage("user", question);
-  const btn = document.getElementById("send"); btn.disabled = true;
+
+  activeAbortController = new AbortController();
+  setSendButtonState(true);
 
   const msg = addMessage("assistant", "");
   const textEl = msg.querySelector(".text");
@@ -402,7 +443,8 @@ async function send() {
       body: JSON.stringify({
         message: question, conversation_id: conversationId,
         persona: currentPersona, mode: currentMode
-      })
+      }),
+      signal: activeAbortController.signal
     });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -435,7 +477,12 @@ async function send() {
       }
     }
   } catch (e) {
-    textEl.innerHTML = renderCites("[connection error: " + e.message + "]");
+    if (e.name === "AbortError") {
+      answer += "\n\n[stopped]";
+      textEl.innerHTML = renderCites(answer);
+    } else {
+      textEl.innerHTML = renderCites("[connection error: " + e.message + "]");
+    }
   } finally {
     clearInterval(thinkTimer);
   }
@@ -445,7 +492,8 @@ async function send() {
   timingEl.textContent = "Response time: " + totalS + "s";
 
   textEl.classList.remove("cursor");
-  btn.disabled = false;
+  activeAbortController = null;
+  setSendButtonState(false);
 }
 
 async function loadConversations() {
@@ -625,6 +673,8 @@ function renderSources(el, citations) {
   }
   el.innerHTML = html + "</div>";
 }
+
+updateSendButtonEnabled();
 
 (async () => {
   await ensureLogin();
