@@ -92,7 +92,9 @@ Also added in this round (not originally itemized, but a natural extension once 
 Hybrid search (vector + keyword), a reranker, and citation formatting the UI can render nicely. Plus the evaluation harness in §7.
 **Done when:** on your client's real documents, the eval set hits your agreed accuracy/latency bar.
 
-**Built:** vector search + BM25 keyword search, fused by Reciprocal Rank Fusion (`app/services/hybrid_search.py`), then reranked by a local cross-encoder (`app/core/reranker.py` + `app/adapters/reranker/`) down to the final context size. Citation rendering already got a UI pass in the Phase 2 round (collapsible sources). The eval harness (`scripts/eval.py` + `docs/eval_set.example.json`) measures retrieval hit-rate and latency against whatever's actually ingested in a deployment — **you still need to set your own accuracy/latency bar with real documents and real questions**; the harness measures, it doesn't grade.
+**Built:** vector search + BM25 keyword search, fused by Reciprocal Rank Fusion (`app/services/hybrid_search.py`), then reranked by a local cross-encoder (`app/core/reranker.py` + `app/adapters/reranker/`) down to the final context size. Citation rendering already got a UI pass in the Phase 2 round (collapsible sources). The eval harness (`scripts/eval.py` + `docs/eval_set.example.json`) measures retrieval hit-rate and latency against whatever's actually ingested in a deployment.
+
+**Scope note:** running that harness against real documents/questions and deciding what accuracy/latency bar is "good enough" is each **deployment's** job, not something built centrally into the product. Razel Tech's product is the API/platform itself — clients bring their own data, host it themselves, and it never leaves their machine (that's the whole point of "fully local"). The harness is provided as self-serve tooling for whoever operates a given deployment (the client, or Razel Tech during setup/onboarding) to check quality on their own documents if they want to — it is not a gate Razel Tech needs to clear centrally before Phase 3 counts as "done." Phase 3 is done: the retrieval-quality mechanisms exist and are verified working.
 
 ---
 
