@@ -6,6 +6,7 @@ from app.adapters.parsers.csv_parser import CsvParser
 from app.adapters.parsers.docx_parser import DocxParser
 from app.adapters.parsers.pdf_parser import PdfParser
 from app.adapters.parsers.registry import ParserRegistry
+from app.adapters.parsers.text_parser import TextParser
 from app.adapters.parsers.xlsx_parser import XlsxParser
 
 
@@ -99,4 +100,18 @@ def test_pdf_parser_raises_on_no_extractable_text(tmp_path):
 def test_registry_supports_new_formats():
     supported = ParserRegistry().supported()
     for ext in [".docx", ".xlsx", ".csv", ".pdf"]:
+        assert ext in supported
+
+
+def test_text_parser_reads_source_code(tmp_path):
+    path = tmp_path / "Sample.cs"
+    path.write_text("public class Sample { void Start() { } }", encoding="utf-8")
+
+    parsed = TextParser().extract(str(path), "Sample.cs")
+    assert "public class Sample" in parsed.text
+
+
+def test_registry_supports_source_code_extensions():
+    supported = ParserRegistry().supported()
+    for ext in [".cs", ".py", ".js", ".json"]:
         assert ext in supported

@@ -2,6 +2,8 @@
 search (vector + BM25 keyword, fused) and reranking, builds a grounded prompt
 that instructs the model to cite with [n], and returns both the prompt
 messages and the citation list."""
+from datetime import datetime
+
 from app.config import settings
 from app.core.embeddings import Embedder
 from app.core.llm import LLMProvider
@@ -26,8 +28,17 @@ SYSTEM_PROMPT = (
     "(like [1] or [2]) right where the claim is made — the example above shows "
     "both requirements together, personality AND citation, in the same reply. If "
     "the answer isn't in the context, say so plainly, with the same natural tone, "
-    "and don't guess. Be concise: say what's needed, skip the filler."
+    "and don't guess. Be concise: say what's needed, skip the filler.\n\n"
+    "One exception to 'only the documents': you are always told the real current "
+    "date and time below as a stated fact. You may answer questions about it "
+    "directly, with no citation needed — it isn't from a document, it's just "
+    "what the server's clock says right now."
 )
+
+
+def _system_prompt_with_clock() -> str:
+    now = datetime.now().strftime("%A, %B %d, %Y, %I:%M %p")
+    return f"{SYSTEM_PROMPT}\n\nCurrent date and time: {now}."
 
 
 class RagService:
@@ -81,7 +92,7 @@ class RagService:
         chunks = self.retrieve(org_id, question)
         context, citations = self._build_context(chunks)
 
-        messages = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
+        messages = [ChatMessage(role="system", content=_system_prompt_with_clock())]
         if history:
             messages.extend(history)
         messages.append(

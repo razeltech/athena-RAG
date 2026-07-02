@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 
@@ -12,6 +13,7 @@ from app.db.models import Document
 from app.services.ingest import IngestService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/documents")
@@ -77,7 +79,14 @@ async def delete_document(
     vectorstore.delete_document(org_id, doc_id)
     file_path = os.path.join(settings.upload_dir, f"{org_id}__{doc.source}")
     if os.path.exists(file_path):
-        os.remove(file_path)
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            # e.g. Windows file lock from an antivirus/indexer scan — the
+            # document is already gone from retrieval either way; don't let
+            # a stray locked file block that. Leaves a harmless orphaned file
+            # to clean up later instead of leaving the document "un-deletable."
+            logger.warning("Could not remove uploaded file %s: %s", file_path, e)
 
     await session.delete(doc)
     await session.commit()
