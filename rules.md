@@ -20,18 +20,16 @@ If a proposed feature does not make that loop *more accurate, more usable, or us
 
 ---
 
-## In scope right now (Phases 1–3 only)
+## In scope right now (Phases 1–3: done. Phase 4: next, per `docs/PLAN.md` §10)
 
-- Document ingestion and text extraction for common formats.
-- Chunking + embeddings + vector storage, scoped per organization.
-- Retrieval (vector search; hybrid + rerank in Phase 3).
-- Answer generation with **inline citations**.
-- Streaming chat API (SSE) + a plain Claude-style web UI that consumes it.
-- Data-level multi-tenancy (`org_id` on everything).
+Phases 1–3 are built: ingestion/extraction for common formats, chunking + embeddings + vector storage per org, hybrid (vector + BM25) retrieval with reranking, cited streaming answers, and data-level multi-tenancy. Phase 4 is the confirmed next work, in this order:
+1. Answer tone/personality (Athena's own persona — not a copy of any existing fictional assistant).
+2. Voice — **confirmed required for the final build** (not hypothetical anymore). Local `/v1/transcribe` (Whisper) + `/v1/speak` (Piper) only — never the browser Speech API, which can route audio to the cloud and breaks offline.
+3. Unordered, as-needed: OCR, bulk upload, real per-user logins/profiles, packaging/installer for distribution.
 
 ## Deferred — do NOT build yet
 
-Knowledge graph · AI agents (email/db/web/automation) · Quest/Unity SDK package · plugin SDK · org-admin analytics dashboards · model fine-tuning · voice **(add local `/transcribe` (Whisper) + `/speak` (Piper) endpoints only when a client needs voice — not the browser speech API, which can route audio to the cloud and breaks offline)**.
+Knowledge graph · AI agents (email/db/web/automation) · Quest/Unity SDK package · plugin SDK · org-admin analytics dashboards · model fine-tuning.
 
 Do **not** add code, folders, dependencies, or abstractions "in preparation" for anything on this list. When a task drifts toward it, stop and flag it.
 
@@ -45,7 +43,7 @@ Each of these sits behind an interface with exactly **one** implementation for n
 - **Embedding model**
 - **Vector store**
 - **Document parser** (per file type, behind one shared `extract()` contract)
-- **Reranker** (optional, Phase 3)
+- **Reranker** (Phase 3 — built)
 
 The `LLM provider` seam exists so we can swap **local models** freely (Qwen → Gemma → Llama, or Ollama → llama.cpp → vLLM) with no other code changes. It is **never** a cloud API. Protect it.
 
