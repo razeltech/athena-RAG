@@ -6,6 +6,14 @@ Every important choice gets an entry so that in six months — or when a second 
 
 ---
 
+## D-011 — Embedding/reranker models load with `local_files_only=True` · Status: accepted
+
+- **Context:** A user-reported slow first message ("hey" took 18.2s) turned out to be partly a real bug, not just cold-start model loading: `sentence-transformers` was making live HEAD requests to huggingface.co on every process start to check for model updates, even though the model was already downloaded and cached. That's a genuine violation of `rules.md`'s non-negotiable — "nothing at runtime may require an internet connection" — not just a performance nit.
+- **Decision:** Both `SentenceTransformerEmbedder` and `CrossEncoderReranker` now try loading with `local_files_only=True` first (zero network calls), falling back to a normal load only if that raises `OSError` (i.e. genuinely first run, nothing cached yet — matches the README's documented "first run downloads the model once" behavior).
+- **Consequences:** Verified — cold start (first request after a restart) dropped from ~18s to ~8.8s (now pure model-loading time, no network round-trips); warm requests are ~1.2s. The full test suite dropped from ~40s to ~7.4s for the same reason. No behavior change for a genuinely fresh install — the fallback still allows the one-time download.
+
+---
+
 ## D-010 — Personas + Modes engine (data-driven, not hardcoded) · Status: accepted
 
 - **Context:** A single hardcoded `SYSTEM_PROMPT` string doesn't scale — the user wants multiple selectable personas (Athena, Meera, Smiley, Raza, with more to come later — "N numbers we can build later"), independently combined with selectable answer-shape modes (teaching, explaining, reviewing code, etc.), switchable per conversation and mid-conversation, plus a response habit (always close with a relevant follow-up, not just stop dead) and lightweight style-mirroring of how the user talks.

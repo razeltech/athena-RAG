@@ -13,7 +13,13 @@ class CrossEncoderReranker(Reranker):
     def __init__(self, model_name: str | None = None):
         from sentence_transformers import CrossEncoder
 
-        self.model = CrossEncoder(model_name or settings.reranker_model)
+        name = model_name or settings.reranker_model
+        try:
+            # Same reasoning as the embedder adapter: once cached, never
+            # phone home on every cold start.
+            self.model = CrossEncoder(name, local_files_only=True)
+        except OSError:
+            self.model = CrossEncoder(name)  # first run: allow the download
 
     def rerank(self, query: str, chunks: list[Chunk], top_k: int) -> list[Chunk]:
         if not chunks:
