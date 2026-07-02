@@ -102,15 +102,19 @@ PDF — hardest, done last). Note: emails, SharePoint, Confluence, and SQL are
 | GET    | `/v1/documents/supported`             | List supported file types                    |
 | GET    | `/v1/documents`                       | List uploaded documents for your org         |
 | DELETE | `/v1/documents/{doc_id}`              | Delete a document (chunks + record + file)   |
-| GET    | `/v1/conversations`                   | List your org's conversations                |
+| GET    | `/v1/conversations`                   | List your org's conversations (includes persona/mode) |
 | GET    | `/v1/conversations/{id}/messages`     | Replay a conversation's full message history |
 | DELETE | `/v1/conversations/{id}`              | Delete a conversation                        |
-| POST   | `/v1/chat`                            | Ask a question (SSE stream), conversation-scoped |
+| GET    | `/v1/personas`                        | List available personas (Athena, Meera, Smiley, Raza, ...) |
+| GET    | `/v1/modes`                           | List available answer modes (Answering, Explaining, Teaching, Review, Summary) |
+| POST   | `/v1/chat`                            | Ask a question (SSE stream), conversation-scoped, persona/mode-aware |
 | GET    | `/v1/health`                          | Health check                                  |
 
 The **same API** is what the Unity/Quest client will call — keep the contract stable.
 `/v1/chat` persists and loads history server-side via `conversation_id` (see
 `docs/DECISIONS.md` D-007) — clients no longer resend the full message history each turn.
+`ChatRequest` also takes optional `persona`/`mode` fields — see `docs/DECISIONS.md` D-010
+for how personas (tone) and modes (answer shape) combine, and how to add more of either.
 
 ## Tests
 

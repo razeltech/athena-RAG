@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.db.database import SessionLocal, engine
+from app.db.database import SessionLocal, engine, ensure_column
 from app.db.models import Base, Organization
 from app.logging_conf import configure_logging
 from app.api.v1.router import api_router
@@ -20,6 +20,14 @@ async def lifespan(app: FastAPI):
     # scripts/init_db.py still exists for CI / pre-provisioning a real Postgres DB.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await ensure_column(
+            conn, "conversations", "persona",
+            "ALTER TABLE conversations ADD COLUMN persona VARCHAR NOT NULL DEFAULT 'athena'",
+        )
+        await ensure_column(
+            conn, "conversations", "mode",
+            "ALTER TABLE conversations ADD COLUMN mode VARCHAR NOT NULL DEFAULT 'answering'",
+        )
     async with SessionLocal() as session:
         if await session.get(Organization, "org_default") is None:
             session.add(Organization(id="org_default", name="Default Org"))

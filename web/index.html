@@ -65,6 +65,13 @@
     color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1;
   }
   .icon-btn:hover { border-color: var(--accent-soft); color: var(--ink); }
+  .picker {
+    font: inherit; font-size: 12px; color: var(--ink-soft); cursor: pointer;
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 9px; max-width: 130px;
+  }
+  .picker:hover { border-color: var(--accent-soft); }
+  .picker:focus { outline: none; border-color: var(--accent-soft); }
 
   .layout { flex: 1; display: flex; min-height: 0; }
   .sidebar {
@@ -246,6 +253,8 @@
     </div>
     <span class="tag">local · offline</span>
     <div class="spacer"></div>
+    <select class="picker" id="personaSelect" onchange="onPersonaChange()" title="Persona"></select>
+    <select class="picker" id="modeSelect" onchange="onModeChange()" title="Mode"></select>
     <button class="doc-btn" onclick="openDocsPanel()">My Documents</button>
     <button class="doc-btn" onclick="document.getElementById('file').click()">+ Add document</button>
     <input type="file" id="file" onchange="uploadDoc(this.files[0])" />
@@ -295,6 +304,9 @@
 const API = ""; // same origin
 let token = null;
 let conversationId = null;
+let currentPersona = "athena";
+let currentMode = "answering";
+let conversationsCache = [];
 
 const EMPTY_STATE_HTML =
   '<div class="empty" id="empty">' +
@@ -387,7 +399,10 @@ async function send() {
     const resp = await fetch(API + "/v1/chat", {
       method: "POST",
       headers: {"Content-Type": "application/json", "Authorization": "Bearer " + token},
-      body: JSON.stringify({message: question, conversation_id: conversationId})
+      body: JSON.stringify({
+        message: question, conversation_id: conversationId,
+        persona: currentPersona, mode: currentMode
+      })
     });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -437,7 +452,8 @@ async function loadConversations() {
   const r = await fetch(API + "/v1/conversations", {
     headers: {"Authorization": "Bearer " + token}
   });
-  renderSidebar(await r.json());
+  conversationsCache = await r.json();
+  renderSidebar(conversationsCache);
 }
 
 function renderSidebar(list) {
@@ -460,6 +476,15 @@ function renderSidebar(list) {
 async function openConversation(id) {
   conversationId = id;
   document.getElementById("thread").innerHTML = EMPTY_STATE_HTML;
+
+  const conv = conversationsCache.find(c => c.id === id);
+  if (conv) {
+    currentPersona = conv.persona || "athena";
+    currentMode = conv.mode || "answering";
+    document.getElementById("personaSelect").value = currentPersona;
+    document.getElementById("modeSelect").value = currentMode;
+  }
+
   const r = await fetch(API + "/v1/conversations/" + id + "/messages", {
     headers: {"Authorization": "Bearer " + token}
   });
@@ -471,6 +496,35 @@ async function openConversation(id) {
     }
   }
   highlightActiveConversation();
+}
+
+async function loadPersonasAndModes() {
+  const [personasResp, modesResp] = await Promise.all([
+    fetch(API + "/v1/personas", {headers: {"Authorization": "Bearer " + token}}),
+    fetch(API + "/v1/modes", {headers: {"Authorization": "Bearer " + token}})
+  ]);
+  const personas = await personasResp.json();
+  const modes = await modesResp.json();
+
+  const personaEl = document.getElementById("personaSelect");
+  personaEl.innerHTML = personas.map(p =>
+    '<option value="' + p.id + '" title="' + esc(p.description) + '">' + esc(p.name) + '</option>'
+  ).join("");
+  personaEl.value = currentPersona;
+
+  const modeEl = document.getElementById("modeSelect");
+  modeEl.innerHTML = modes.map(m =>
+    '<option value="' + m.id + '" title="' + esc(m.description) + '">' + esc(m.name) + '</option>'
+  ).join("");
+  modeEl.value = currentMode;
+}
+
+function onPersonaChange() {
+  currentPersona = document.getElementById("personaSelect").value;
+}
+
+function onModeChange() {
+  currentMode = document.getElementById("modeSelect").value;
 }
 
 function startNewChat() {
@@ -574,6 +628,7 @@ function renderSources(el, citations) {
 
 (async () => {
   await ensureLogin();
+  await loadPersonasAndModes();
   await loadConversations();
 })();
 </script>

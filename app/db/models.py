@@ -47,6 +47,8 @@ class Conversation(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
     title: Mapped[str] = mapped_column(String, default="")
+    persona: Mapped[str] = mapped_column(String, default="athena")
+    mode: Mapped[str] = mapped_column(String, default="answering")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

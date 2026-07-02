@@ -87,6 +87,39 @@ def test_second_turn_reuses_conversation_and_loads_history(client, auth_headers)
     assert any(m.content == "Hi there" for m in second_call_history)
 
 
+def test_persona_and_mode_default_and_persist(client, auth_headers):
+    _use_fake_llm()
+    resp = client.post("/v1/chat", headers=auth_headers, json={"message": "Hi there"})
+    conversation_id = dict(_parse_sse(resp.text))["conversation"]["conversation_id"]
+
+    conversations = client.get("/v1/conversations", headers=auth_headers).json()
+    conv = next(c for c in conversations if c["id"] == conversation_id)
+    assert conv["persona"] == "athena"
+    assert conv["mode"] == "answering"
+
+
+def test_persona_and_mode_can_be_chosen_and_switched(client, auth_headers):
+    fake_llm = _use_fake_llm()
+    resp = client.post(
+        "/v1/chat", headers=auth_headers,
+        json={"message": "Hi", "persona": "raza", "mode": "teaching"},
+    )
+    conversation_id = dict(_parse_sse(resp.text))["conversation"]["conversation_id"]
+    assert "Raza" in fake_llm.received_messages[0][0].content
+    assert "Mode: Teaching" in fake_llm.received_messages[0][0].content
+
+    client.post(
+        "/v1/chat", headers=auth_headers,
+        json={"message": "follow up", "conversation_id": conversation_id, "persona": "smiley"},
+    )
+    assert "Smiley" in fake_llm.received_messages[1][0].content
+
+    conversations = client.get("/v1/conversations", headers=auth_headers).json()
+    conv = next(c for c in conversations if c["id"] == conversation_id)
+    assert conv["persona"] == "smiley"
+    assert conv["mode"] == "teaching"  # unchanged since second call didn't send one
+
+
 def test_delete_conversation_removes_it(client, auth_headers):
     _use_fake_llm()
     resp = client.post("/v1/chat", headers=auth_headers, json={"message": "Hi there"})

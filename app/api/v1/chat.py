@@ -11,6 +11,8 @@ from app.api.deps import get_current_org, get_db_session, get_rag_service
 from app.core.models import ChatMessage
 from app.db.database import SessionLocal
 from app.db.models import Conversation, Message
+from app.services.modes import DEFAULT_MODE_ID
+from app.services.personas import DEFAULT_PERSONA_ID
 from app.services.rag import RagService
 
 TITLE_MAX_LEN = 60
@@ -19,6 +21,8 @@ TITLE_MAX_LEN = 60
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None  # None => start a new conversation
+    persona: str | None = None  # None => keep conversation's current persona
+    mode: str | None = None  # None => keep conversation's current mode
 
 
 def _sse(event: str, data: dict) -> str:
@@ -44,7 +48,11 @@ async def chat(
 ):
     is_new = req.conversation_id is None
     if is_new:
-        conversation = Conversation(org_id=org_id)
+        conversation = Conversation(
+            org_id=org_id,
+            persona=req.persona or DEFAULT_PERSONA_ID,
+            mode=req.mode or DEFAULT_MODE_ID,
+        )
         session.add(conversation)
         await session.flush()  # populate conversation.id without committing yet
     else:
@@ -56,6 +64,12 @@ async def chat(
         conversation = result.scalar_one_or_none()
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
+        # Persona/mode can be switched mid-conversation — only overwrite the
+        # stored choice when the client actually sent one.
+        if req.persona:
+            conversation.persona = req.persona
+        if req.mode:
+            conversation.mode = req.mode
 
     history = await _load_history(session, conversation.id)
 
@@ -75,7 +89,10 @@ async def chat(
     )
     await session.commit()
 
-    messages, citations = rag.prepare(org_id, req.message, history)
+    messages, citations = rag.prepare(
+        org_id, req.message, history,
+        persona_id=conversation.persona, mode_id=conversation.mode,
+    )
     conversation_id = conversation.id
 
     async def event_stream():

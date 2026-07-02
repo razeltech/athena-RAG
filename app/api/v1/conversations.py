@@ -19,7 +19,13 @@ async def list_conversations(
         .order_by(Conversation.updated_at.desc())
     )
     return [
-        {"id": c.id, "title": c.title, "updated_at": c.updated_at.isoformat()}
+        {
+            "id": c.id,
+            "title": c.title,
+            "persona": c.persona,
+            "mode": c.mode,
+            "updated_at": c.updated_at.isoformat(),
+        }
         for c in result.scalars().all()
     ]
 
