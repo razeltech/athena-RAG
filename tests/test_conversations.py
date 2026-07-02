@@ -1,4 +1,4 @@
-from app.api.deps import get_embedder, get_rag_service, get_vectorstore
+from app.api.deps import get_embedder, get_rag_service, get_reranker, get_vectorstore
 from app.core.llm import LLMProvider
 from app.main import app
 from app.services.rag import RagService
@@ -35,7 +35,7 @@ def _use_fake_llm() -> FakeLLM:
     fake_llm = FakeLLM()
     vectorstore = app.dependency_overrides[get_vectorstore]()
     app.dependency_overrides[get_rag_service] = lambda: RagService(
-        get_embedder(), vectorstore, fake_llm
+        get_embedder(), vectorstore, fake_llm, get_reranker()
     )
     return fake_llm
 

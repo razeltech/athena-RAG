@@ -39,3 +39,21 @@ def test_delete_document_is_scoped_to_org(tmp_path):
 
     assert store.search("org1", query_embedding=[1.0, 0.0], top_k=10) == []
     assert len(store.search("org2", query_embedding=[1.0, 0.0], top_k=10)) == 1
+
+
+def test_get_all_returns_every_chunk_for_one_org(tmp_path):
+    store = ChromaVectorStore(persist_dir=str(tmp_path / "chroma"))
+
+    chunk_a = _chunk("doc-a", "org1", 0, "alpha")
+    chunk_b = _chunk("doc-b", "org1", 0, "beta")
+    chunk_other_org = _chunk("doc-c", "org2", 0, "gamma")
+    store.add(
+        [chunk_a, chunk_b, chunk_other_org],
+        embeddings=[[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
+    )
+
+    all_org1 = store.get_all("org1")
+    assert {c.doc_id for c in all_org1} == {"doc-a", "doc-b"}
+
+    all_org2 = store.get_all("org2")
+    assert [c.doc_id for c in all_org2] == ["doc-c"]

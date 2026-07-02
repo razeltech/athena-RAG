@@ -92,6 +92,8 @@ Also added in this round (not originally itemized, but a natural extension once 
 Hybrid search (vector + keyword), a reranker, and citation formatting the UI can render nicely. Plus the evaluation harness in §7.
 **Done when:** on your client's real documents, the eval set hits your agreed accuracy/latency bar.
 
+**Built:** vector search + BM25 keyword search, fused by Reciprocal Rank Fusion (`app/services/hybrid_search.py`), then reranked by a local cross-encoder (`app/core/reranker.py` + `app/adapters/reranker/`) down to the final context size. Citation rendering already got a UI pass in the Phase 2 round (collapsible sources). The eval harness (`scripts/eval.py` + `docs/eval_set.example.json`) measures retrieval hit-rate and latency against whatever's actually ingested in a deployment — **you still need to set your own accuracy/latency bar with real documents and real questions**; the harness measures, it doesn't grade.
+
 ---
 
 ## 7. Evaluation (the part the original plan skipped)
@@ -102,6 +104,8 @@ RAG lives or dies on retrieval quality, so we measure it, not vibe-check it.
 - Track: **retrieval hit-rate** (did the right chunk come back?), **answer groundedness** (is every claim cited?), and **latency** (time to first token, total time).
 - Set one concrete bar with the client before Phase 3, e.g. "correct source in top-k ≥ 90%, answer streams first token < 2s." Adjust to their reality.
 - Re-run the eval on every change that touches chunking, embeddings, retrieval, or the model.
+
+**Tooling:** `python -m scripts.eval docs/eval_set.example.json --org-id <your org> [--with-llm]`. Retrieval hit-rate + latency are measured automatically. `--with-llm` adds time-to-first-token/total latency and prints each generated answer next to its citations for a manual groundedness spot-check — auto-verifying that every claim in an answer is actually supported by its citations is a hard NLP problem on its own, out of scope here.
 
 ---
 
@@ -122,3 +126,19 @@ Note the split the original list blurred: DOCX/XLSX/PPTX/HTML/MD/CSV are **file 
 - **Web first** — plain HTML/CSS/JS chat page that consumes the SSE stream and renders citations. Looks/behaves like Claude/ChatGPT.
 - **Quest/Unity later** — a Unity (C#) app that makes the same HTTP + SSE calls to the same `/v1` API. Nothing model-related lives on the headset. This is *why* we keep the API contract stable and versioned.
 - **Voice** — must be **local**, not the browser speech API (which can send audio to the cloud). When a client needs voice, add `/v1/transcribe` (local Whisper) and `/v1/speak` (local Piper) so every client shares the same offline pipeline.
+
+---
+
+## 10. Phase 4 (planned, after Phase 3 — recorded per rules.md before building)
+
+Phases 1–3 target technical correctness. Phase 4 targets making the product genuinely usable at real scale (colleges/schools/offices) and market-ready. Strict order — each item starts only after the one above it is solid:
+
+1. **Answer tone/personality** — rework `SYSTEM_PROMPT` (`app/services/rag.py`) so answers read naturally and conversationally instead of the current compliance-instruction tone. This is **Athena's own original persona** (not a copy of any existing fictional assistant) — calm, precise, warm, talks *to* the user, with natural Indian conversational color woven in tastefully (starting with common Telugu/Andhra-Telangana expressions, broadening to other states' common expressions later). Prompt-only change; cheap to iterate, easy to revert.
+2. **Voice** — confirmed as a hard requirement for the final build (a selling point), sequenced after tone work so it sits on top of an assistant that already sounds good. Local Whisper (`/v1/transcribe`) + local Piper (`/v1/speak`) per the existing rule — never the browser Speech API.
+3. **As-needed, unordered** (each gets its own scoping pass and `DECISIONS.md` entry when picked up):
+   - **OCR** for scanned/image-only PDFs (batch, at ingest time — not live/video capture). Not on the "do not build" list, just not yet reached.
+   - **Bulk upload** (many files / a folder at once) — the single-file upload UI doesn't scale past a handful of documents.
+   - **Real per-user logins + individual profiles** (ChatGPT/Claude-style) — replace the dev-only login stub with real password verification against the existing `users` table, and scope `Conversation`/`Document` by `user_id` in addition to `org_id`.
+   - **Packaging/distribution** — ship an installable build (not raw source) that sets up the environment automatically, so a non-technical client can run it. `docker-compose.yml` already covers the "technical user" path; a native installer is a separate, bigger effort.
+
+Nothing above changes Phases 1–3's scope or the Prime Directive — it's the ordered backlog for after Phase 3 ships.

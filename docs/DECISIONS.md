@@ -6,6 +6,15 @@ Every important choice gets an entry so that in six months — or when a second 
 
 ---
 
+## D-008 — Phase 3 retrieval: BM25 + vector fusion (RRF), local cross-encoder reranker · Status: accepted
+
+- **Context:** Vector search alone misses exact-term matches (model numbers, names, acronyms) that embeddings blur together — the known weak spot `rules.md`'s Phase 3 scope calls "hybrid search" out to fix. Also needed a reranker seam, since `rules.md`'s architecture-seams list names one explicitly for Phase 3.
+- **Options considered for the keyword half:** (a) SQLite FTS5 (already have SQLite, but needs raw-SQL virtual-table wiring outside the SQLAlchemy ORM) vs (b) `rank_bm25`, a pure-Python BM25 implementation scored in-memory against `VectorStore.get_all(org_id)` (a new method added to the `VectorStore` interface, since the vector store already holds full chunk text). Chose (b) for simplicity — no new schema/migration, and at the "hundreds to low-thousands of chunks per org" scale this project targets, rebuilding the BM25 index per query is fast (~tens of ms, confirmed in testing) with no persistence to manage.
+- **Decision:** `app/services/hybrid_search.py` provides `bm25_search()` and `reciprocal_rank_fusion()` (RRF — fuses by rank position, not raw score, since BM25 and cosine-similarity scores aren't on comparable scales). `RagService.retrieve()` now: vector search top-N + BM25 top-N → RRF fuse → rerank fused candidates with a local `sentence-transformers` `CrossEncoder` (`cross-encoder/ms-marco-MiniLM-L-6-v2`, same library already used for embeddings, ~80MB, downloaded once) down to the final `retrieval_top_k`. New settings: `hybrid_candidate_k` (candidates per method before fusion, default 20), `reranker_model`.
+- **Consequences:** One new interface (`app/core/reranker.py`, matching the existing adapter pattern) with one local implementation — swappable later without touching `RagService`. Retrieval is slightly slower per query (BM25 pass + cross-encoder pass, both local/CPU), acceptable given retrieval quality was the explicit Phase 3 goal. `scripts/eval.py` exists specifically to measure whether this tradeoff is worth it on real documents.
+
+---
+
 ## D-007 — `/v1/chat` becomes conversation-scoped, dropping client-resent `history` · Status: accepted
 
 - **Context:** Chat history was entirely client-side (the browser resent the full message array every turn, lost on refresh/restart). The user wanted ChatGPT/Claude-style persistent, resumable conversations with a sidebar.

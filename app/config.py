@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     chroma_dir: str = "./data/chroma"
     retrieval_top_k: int = 5
 
+    # --- Retrieval quality (Phase 3: hybrid search + rerank) ---------------
+    # Each of vector search and BM25 keyword search contributes this many
+    # candidates before fusion; the reranker then narrows the fused set down
+    # to retrieval_top_k for the final answer context.
+    hybrid_candidate_k: int = 20
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
     # --- Chunking (word-based for now; swap to token-based later) ---------
     chunk_size: int = 800
     chunk_overlap: int = 150

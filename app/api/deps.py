@@ -11,6 +11,7 @@ from app.adapters.embeddings.sentence_transformers_embedder import (
 )
 from app.adapters.llm.ollama_llm import OllamaLLM
 from app.adapters.parsers.registry import ParserRegistry
+from app.adapters.reranker.cross_encoder_reranker import CrossEncoderReranker
 from app.adapters.vectorstore.chroma_store import ChromaVectorStore
 from app.api.auth import decode_token
 from app.db.database import SessionLocal
@@ -38,6 +39,11 @@ def get_registry() -> ParserRegistry:
     return ParserRegistry()
 
 
+@lru_cache
+def get_reranker() -> CrossEncoderReranker:
+    return CrossEncoderReranker()
+
+
 def get_ingest_service(
     embedder: SentenceTransformerEmbedder = Depends(get_embedder),
     vectorstore: ChromaVectorStore = Depends(get_vectorstore),
@@ -54,8 +60,9 @@ def get_rag_service(
     embedder: SentenceTransformerEmbedder = Depends(get_embedder),
     vectorstore: ChromaVectorStore = Depends(get_vectorstore),
     llm: OllamaLLM = Depends(get_llm),
+    reranker: CrossEncoderReranker = Depends(get_reranker),
 ) -> RagService:
-    return RagService(embedder, vectorstore, llm)
+    return RagService(embedder, vectorstore, llm, reranker)
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:

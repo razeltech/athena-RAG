@@ -7,6 +7,30 @@ app is a later client using the same API.
 
 > Read `rules.md` and `docs/PLAN.md` before building. They keep scope and architecture on track.
 
+## Starting the server yourself (day-to-day)
+
+The environment is already set up (`.venv`, `.env`, dependencies installed). Every time you
+want to run/test the app locally, you only need two things running:
+
+1. **Ollama** (the local LLM engine) — if it's not already running:
+   ```powershell
+   ollama list   # starts the Ollama background service if it wasn't already running
+   ```
+2. **The Athena server** — in this project folder:
+   ```powershell
+   .venv\Scripts\Activate.ps1
+   uvicorn app.main:app --reload --port 3636
+   ```
+   (Git Bash / WSL: `source .venv/Scripts/activate && uvicorn app.main:app --reload --port 3636`)
+
+Then open **http://localhost:3636** in your browser. `--port 3636` matches what's been used
+during development in this repo so far — change it (or drop the flag for the default 8000)
+if you prefer. `--reload` auto-restarts the server whenever a `.py` file changes, so you
+generally don't need to stop/restart it yourself while iterating on backend code — only
+`web/index.html` changes need just a browser refresh, no restart at all.
+
+To stop the server, `Ctrl+C` in that terminal.
+
 ## Stack
 
 | Concern      | Choice (all local)                              | Swappable via |
@@ -15,6 +39,8 @@ app is a later client using the same API.
 | LLM          | Ollama + GGUF (default `qwen2.5:7b-instruct`)    | `app/adapters/llm/` |
 | Embeddings   | sentence-transformers (`bge-small-en-v1.5`)      | `app/adapters/embeddings/` |
 | Vector store | Chroma (persistent, metadata-filtered by org)    | `app/adapters/vectorstore/` |
+| Retrieval    | Hybrid: vector + BM25 keyword, fused (RRF)       | `app/services/hybrid_search.py` |
+| Reranker     | Local cross-encoder (`ms-marco-MiniLM-L-6-v2`)   | `app/adapters/reranker/` |
 | Parsers      | txt / md / html / docx / xlsx / csv / pdf         | `app/adapters/parsers/` |
 | Metadata DB  | SQLite (dev) / PostgreSQL (prod)                 | `DATABASE_URL` |
 
@@ -91,6 +117,16 @@ The **same API** is what the Unity/Quest client will call — keep the contract 
 ```
 pytest
 ```
+
+## Evaluating retrieval quality
+
+```
+python -m scripts.eval docs/eval_set.example.json --org-id org_default --with-llm
+```
+
+`docs/eval_set.example.json` is a format example, not a real benchmark — copy it and
+replace with real questions + expected source documents from your own ingested files.
+See `docs/PLAN.md` §7.
 
 ## Project layout
 

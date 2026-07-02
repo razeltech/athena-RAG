@@ -62,3 +62,20 @@ class ChromaVectorStore(VectorStore):
         self.collection.delete(
             where={"$and": [{"org_id": org_id}, {"doc_id": doc_id}]}
         )
+
+    def get_all(self, org_id: str) -> list[Chunk]:
+        res = self.collection.get(where={"org_id": org_id})
+        ids = res.get("ids") or []
+        docs = res.get("documents") or []
+        metas = res.get("metadatas") or []
+        return [
+            Chunk(
+                id=cid,
+                doc_id=meta["doc_id"],
+                org_id=meta["org_id"],
+                source=meta["source"],
+                chunk_index=int(meta["chunk_index"]),
+                text=text,
+            )
+            for cid, text, meta in zip(ids, docs, metas)
+        ]

@@ -19,3 +19,10 @@ class VectorStore(ABC):
     def delete_document(self, org_id: str, doc_id: str) -> None:
         """Remove every chunk belonging to one document, scoped to one org."""
         ...
+
+    @abstractmethod
+    def get_all(self, org_id: str) -> list[Chunk]:
+        """Return every chunk for one org — the corpus a keyword search
+        (e.g. BM25) scores against, since the vector store already holds the
+        full chunk text."""
+        ...
