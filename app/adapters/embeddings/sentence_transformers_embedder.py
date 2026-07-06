@@ -6,18 +6,24 @@ from app.core.embeddings import Embedder
 
 
 class SentenceTransformerEmbedder(Embedder):
-    def __init__(self, model_name: str | None = None):
+    def __init__(self, model_name: str | None = None, device: str | None = None):
         from sentence_transformers import SentenceTransformer
 
         name = model_name or settings.embedding_model
+        # Explicit device, not auto-detection — see docs/DECISIONS.md D-014.
+        # Left unpinned, sentence-transformers grabs CUDA whenever it's
+        # present, silently competing with the LLM (and later TTS) for the
+        # one shared GPU. Defaults to CPU; override via EMBEDDING_DEVICE if
+        # this specific deployment has GPU headroom to spare.
+        dev = device or settings.embedding_device
         try:
             # Once cached, never phone home to check for updates — this is a
             # "fully local / air-gapped" product (see rules.md); a live HEAD
             # request to huggingface.co on every cold start also adds a
             # couple of real seconds to the first request after any restart.
-            self.model = SentenceTransformer(name, local_files_only=True)
+            self.model = SentenceTransformer(name, device=dev, local_files_only=True)
         except OSError:
-            self.model = SentenceTransformer(name)  # first run: allow the download
+            self.model = SentenceTransformer(name, device=dev)  # first run: allow the download
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return self.model.encode(texts, normalize_embeddings=True).tolist()

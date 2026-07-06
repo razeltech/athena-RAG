@@ -52,6 +52,7 @@ The `LLM provider` seam exists so we can swap **local models** freely (Qwen → 
 ## Non-negotiables
 
 - **Fully local / air-gapped.** No external API calls, no API keys, no cloud services for inference, embeddings, models, or voice. Nothing at runtime may require an internet connection. If a library needs a network call to work, it's the wrong library.
+- **Explicit resource management — don't blindly grab the GPU** (see `docs/DECISIONS.md` D-014). Several local models now share one machine's hardware (LLM, embedder, reranker, and soon STT/TTS). Small models default to CPU explicitly (`EMBEDDING_DEVICE`/`RERANKER_DEVICE`), not auto-detected GPU, so they don't silently compete with the LLM for VRAM. Ollama's `keep_alive` is configured explicitly, not left at an invisible default. CPU thread usage is capped via `CPU_THREAD_LIMIT` when needed, not left to unconditionally claim every core. New local models (voice, future ones) must state their device/resource footprint in their `DECISIONS.md` entry, not assume hardware is free for the taking.
 - Every answer returns **citations** (source document + location). No citation = a bug, not a style choice.
 - **Streaming from day one** (SSE). The web UI renders tokens as they arrive.
 - **Multi-tenant at the data layer from the start**: every document, chunk, and query carries an `org_id`. (The admin *UI* is deferred; the data boundary is not.)

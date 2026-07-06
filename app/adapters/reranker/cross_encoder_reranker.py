@@ -10,16 +10,20 @@ from app.core.reranker import Reranker
 
 
 class CrossEncoderReranker(Reranker):
-    def __init__(self, model_name: str | None = None):
+    def __init__(self, model_name: str | None = None, device: str | None = None):
         from sentence_transformers import CrossEncoder
 
         name = model_name or settings.reranker_model
+        # Explicit device, not auto-detection — same reasoning as the
+        # embedder adapter (see docs/DECISIONS.md D-014): defaults to CPU so
+        # this small model doesn't silently compete with the LLM for GPU.
+        dev = device or settings.reranker_device
         try:
             # Same reasoning as the embedder adapter: once cached, never
             # phone home on every cold start.
-            self.model = CrossEncoder(name, local_files_only=True)
+            self.model = CrossEncoder(name, device=dev, local_files_only=True)
         except OSError:
-            self.model = CrossEncoder(name)  # first run: allow the download
+            self.model = CrossEncoder(name, device=dev)  # first run: allow the download
 
     def rerank(self, query: str, chunks: list[Chunk], top_k: int) -> list[Chunk]:
         if not chunks:

@@ -12,6 +12,16 @@ from app.api.v1.router import api_router
 
 configure_logging()
 
+if settings.cpu_thread_limit:
+    # Caps CPU threads for torch-based local models (embedder, reranker, and
+    # later faster-whisper/Indic Parler-TTS on CPU) so they don't
+    # unconditionally grab every core on the host — see docs/DECISIONS.md
+    # D-014. Must happen before any torch-based model is constructed, so
+    # this runs at import time, not inside the lifespan hook.
+    import torch
+
+    torch.set_num_threads(settings.cpu_thread_limit)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -21,6 +21,11 @@ class OllamaLLM(LLMProvider):
             "model": self.model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": True,
+            # Explicit, not left to Ollama's implicit default — see
+            # docs/DECISIONS.md D-014. Controls how long the model stays
+            # resident in VRAM after this request, which matters once other
+            # local models (e.g. GPU-tier TTS) are competing for the same GPU.
+            "keep_alive": settings.llm_keep_alive,
             "options": {
                 "temperature": settings.llm_temperature,
                 "num_ctx": settings.llm_num_ctx,
